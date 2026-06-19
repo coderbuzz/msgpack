@@ -1,8 +1,8 @@
-<!-- docs: sync from coderbuzz/codex@6f70be3 -->
+<!-- docs: sync from coderbuzz/codex@2b8f9a1 -->
 
 # Msgpack &mdash; `@coderbuzz/msgpack`
 
-> **High-performance MessagePack for TypeScript.** Smaller than JSON. Faster than the alternatives. Zero unnecessary allocations.
+> **High-performance MessagePack for TypeScript.** Smaller than JSON. 2x faster than `@msgpack/msgpack`. Zero unnecessary allocations.
 > AI agents: see [AI_KNOWLEDGE.md](https://github.com/coderbuzz/msgpack/blob/main/AI_KNOWLEDGE.md) for expert context.
 
 `@coderbuzz/msgpack` is a purpose-built MessagePack encoder/decoder optimized for minimal GC pressure and maximum throughput. For structured API responses, compact objects are **~55% smaller** than JSON, and numeric arrays are **~60% smaller**.
@@ -43,6 +43,18 @@
 | Compact object `{ name, age, active }` | ~45 bytes | ~20 bytes | **~55%** |
 | Numeric array `[1..1000]` | ~3.9 KB | ~1.5 KB | **~60%** |
 | Structured API response (nested) | ~2 KB | ~1.3 KB | **~35%** |
+
+### Throughput & Wire Size (Apple M-series, Bun)
+
+Full results at **[github.com/coderbuzz/benchmarks](https://github.com/coderbuzz/benchmarks)**.
+
+| Scenario | @coderbuzz/msgpack | @msgpack/msgpack | Factor |
+|---|---|---|---|
+| Nested object encode | **2.46M ops/s** | 1.19M | **2.1x** |
+| Nested object decode | **1.07M ops/s** | 0.95M | **1.1x** |
+| Wire size (nested object) | **133 bytes** | 133 bytes | Same |
+
+> JSON.stringify/parse is faster (~5.06M encode, ~2.24M decode) but produces larger output (178 bytes) and lacks a binary contract.
 
 ---
 
