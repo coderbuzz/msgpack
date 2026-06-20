@@ -1,4 +1,4 @@
-<!-- docs: sync from coderbuzz/codex@2b8f9a1 -->
+<!-- docs: sync from coderbuzz/codex@796aac1 -->
 
 # Msgpack &mdash; `@coderbuzz/msgpack`
 
@@ -49,12 +49,12 @@
 Full results at **[github.com/coderbuzz/benchmarks](https://github.com/coderbuzz/benchmarks)**.
 
 | Scenario | @coderbuzz/msgpack | @msgpack/msgpack | Factor |
-|---|---|---|---|
-| Nested object encode | **2.46M ops/s** | 1.19M | **2.1x** |
-| Nested object decode | **1.07M ops/s** | 0.95M | **1.1x** |
+|---|---|---|---|---|
+| Nested object encode | **2.04M ops/s** | 0.77M | **2.7x** |
+| Nested object decode | **0.90M ops/s** | 0.87M | **1.04x** |
 | Wire size (nested object) | **133 bytes** | 133 bytes | Same |
 
-> JSON.stringify/parse is faster (~5.06M encode, ~2.24M decode) but produces larger output (178 bytes) and lacks a binary contract.
+> JSON.stringify/parse is faster (~4.78M encode, ~1.96M decode) but produces larger output (178 bytes) and lacks a binary contract.
 
 ---
 
