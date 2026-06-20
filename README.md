@@ -1,4 +1,4 @@
-<!-- docs: sync from coderbuzz/codex@d0bc006 -->
+<!-- docs: sync from coderbuzz/codex@8a99d5c -->
 
 # Msgpack &mdash; `@coderbuzz/msgpack`
 
