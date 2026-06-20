@@ -1,4 +1,4 @@
-<!-- docs: sync from coderbuzz/codex@796aac1 -->
+<!-- docs: sync from coderbuzz/codex@d0bc006 -->
 
 # Msgpack &mdash; `@coderbuzz/msgpack`
 
@@ -9,7 +9,7 @@
 
 ---
 
-## Why @coderbuzz/msgpack Over @msgpack/msgpack or notepack?
+## Why @coderbuzz/msgpack over @msgpack/msgpack or notepack?
 
 | Pain Point | @msgpack/msgpack | notepack | **@coderbuzz/msgpack** |
 |---|---|---|---|
