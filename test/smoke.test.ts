@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { encode, decode, encodedSize } from "@coderbuzz/msgpack";
+import { encode, decode, encodedSize } from "../src/index";
 
 test("encode/decode string", () => {
   const buf = encode("hello");
