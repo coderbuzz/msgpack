@@ -1,0 +1,11 @@
+{
+  "name": "@coderbuzz/msgpack-ci",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@coderbuzz/msgpack": "latest"
+  }
+}
