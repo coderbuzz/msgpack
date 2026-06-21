@@ -1,4 +1,4 @@
-<!-- docs: sync from coderbuzz/codex@46af4b9 -->
+<!-- docs: sync from coderbuzz/codex@e5210d1 -->
 
 # Msgpack &mdash; `@coderbuzz/msgpack`
 
@@ -9,6 +9,8 @@
   <a href="https://www.npmjs.com/package/@coderbuzz/msgpack"><img src="https://img.shields.io/npm/dm/@coderbuzz/msgpack.svg?style=flat-square" alt="npm downloads" /></a>
   <a href="https://github.com/coderbuzz/msgpack/blob/main/LICENSE"><img src="https://img.shields.io/github/license/coderbuzz/msgpack.svg?style=flat-square" alt="MIT License" /></a>
   <a href="https://github.com/coderbuzz/msgpack"><img src="https://img.shields.io/github/stars/coderbuzz/msgpack.svg?style=flat-square" alt="GitHub Stars" /></a>
+  <a href="https://github.com/coderbuzz/codex/actions/workflows/ci.msgpack.yml"><img src="https://github.com/coderbuzz/codex/actions/workflows/ci.msgpack.yml/badge.svg" alt="CI" /></a>
+  <a href="https://codecov.io/gh/coderbuzz/codex"><img src="https://codecov.io/gh/coderbuzz/codex/graph/badge.svg?flag=msgpack" alt="Codecov" /></a>
 </p>
 
 `@coderbuzz/msgpack` is a purpose-built MessagePack encoder/decoder optimized for minimal GC pressure and maximum throughput. For structured API responses, compact objects are **~55% smaller** than JSON, and numeric arrays are **~60% smaller**.

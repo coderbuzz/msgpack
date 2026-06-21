@@ -1,4 +1,4 @@
-<!-- docs: sync from coderbuzz/codex@46af4b9 -->
+<!-- docs: sync from coderbuzz/codex@e5210d1 -->
 
 # Msgpack — AI Agent Knowledge File
 
