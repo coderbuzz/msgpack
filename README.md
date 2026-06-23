@@ -1,4 +1,4 @@
-<!-- docs: sync from coderbuzz/codex@e9b6bce -->
+<!-- docs: sync from coderbuzz/codex@b1e2bde -->
 
 # Msgpack &mdash; `@coderbuzz/msgpack`
 
@@ -91,6 +91,13 @@ const bytes = encode({ name: "Alice", age: 30, active: true });
 
 const value = decode(bytes);
 // => { name: "Alice", age: 30, active: true }
+
+// Zero-copy (returns view — consume immediately)
+socket.send(encodeUnsafe({ event: "click", x: 10, y: 20 }));
+
+// Pre-allocation (caller-owned buffer)
+const buf = new Uint8Array(encodedSize(data));
+encodeInto(data, buf);
 ```
 
 ---

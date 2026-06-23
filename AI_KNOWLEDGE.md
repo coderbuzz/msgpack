@@ -1,4 +1,4 @@
-<!-- docs: sync from coderbuzz/codex@e9b6bce -->
+<!-- docs: sync from coderbuzz/codex@b1e2bde -->
 
 # Msgpack — AI Agent Knowledge File
 
@@ -298,3 +298,99 @@ try {
 
 For decoding untrusted data, wrap in try-catch. The decoder has no bounds
 checking — malformed data may produce `RangeError` from `DataView` methods.
+
+---
+
+## Internal Buffer Details
+
+### Growth Algorithm
+
+The encoder uses a single module-level reusable buffer (`buf: Uint8Array`, `dv: DataView`, `pos: number`). All encode functions share these globals — thread-safe because JS is single-threaded.
+
+```
+Initial: buf = new Uint8Array(65536)  // 64 KB
+On overflow: buf = new Uint8Array(buf.length * 2)  // double
+```
+
+The buffer never shrinks. It grows geometrically (doubles) when `pos + needed > buf.length`. After many large encodes, the buffer stabilizes at the peak size needed.
+
+**Lifecycle:**
+1. `encode()` call → `pos = 0`
+2. Write header + value(s) → `pos` advances
+3. Return `buf.slice(0, pos)` — copy for safety
+4. `encodeUnsafe()` returns `buf.subarray(0, pos)` — view, zero-copy
+
+### Encoding Decision Tree
+
+```
+value to encode
+  ├─ typeof v === "undefined" || v === null  → write 0xc0 (nil)
+  ├─ typeof v === "boolean"                   → write 0xc2/0xc3
+  ├─ typeof v === "number"
+  │   ├─ Number.isInteger(v) && in varint range → smallest fixint/uint/int
+  │   └─ else                                   → float64 (0xcb)
+  ├─ typeof v === "string"
+  │   ├─ len < 32 → inline UTF-8 encoder (no TextEncoder)
+  │   ├─ len < 256 → str8 (0xd9)
+  │   ├─ len < 65536 → str16 (0xda)
+  │   └─ len >= 65536 → str32 (0xdb)
+  ├─ typeof v === "bigint"
+  │   ├─ v >= 0n → uint64 (0xcf)
+  │   └─ v < 0n  → int64 (0xd3)
+  ├─ v instanceof Uint8Array → bin8/16/32 based on length
+  ├─ v instanceof Date → ISO string via .toISOString()
+  ├─ Array.isArray(v) → fixarray/array16/32 + recursive encode
+  └─ typeof v === "object" → fixmap/map16/32 + recursive encode keys+values
+```
+
+### Decode Decision Tree
+
+```
+decode byte at position
+  ├─ 0xc0 → return null (nil)
+  ├─ 0xc2/0xc3 → return false/true
+  ├─ 0xca → read float32 (4 bytes)
+  ├─ 0xcb → read float64 (8 bytes)
+  ├─ 0xcc..0xcf → read uint8/16/32/64
+  ├─ 0xd0..0xd3 → read int8/16/32/64
+  ├─ 0xa0..0xbf (fixstr) → read string of length (byte & 0x1f)
+  ├─ 0xd9..0xdb (str8/16/32) → read string with header length
+  ├─ 0xc4..0xc6 (bin8/16/32) → return Uint8Array
+  ├─ 0x90..0x9f (fixarray) → read array of length (byte & 0x0f), recurse
+  ├─ 0xdc..0xdd (array16/32) → read array with header length, recurse
+  ├─ 0x80..0x8f (fixmap) → read map of length (byte & 0x0f), recurse key+value
+  ├─ 0xde..0xdf (map16/32) → read map with header length, recurse key+value
+  └─ default → throw "MessagePack: unknown format byte 0xNN at offset N"
+```
+
+**ASCII fast path (decode):** Strings ≤24 bytes where all bytes are ≤ 0x7F use `String.fromCharCode()` directly — avoids `TextDecoder`.
+
+### Performance Characteristics
+
+| Operation | Hot Path | Allocations |
+|---|---|---|
+| `encode(v)` | Inline write to `DataView` | 1 (`.slice()` copy) |
+| `encodeUnsafe(v)` | Inline write to `DataView` | 0 |
+| `encodeInto(v, buf, off)` | Inline write to `DataView` | 0 (caller buffer) |
+| `decode(data)` | `DataView` reads + recursive object/array construction | N (one per decoded value) |
+| `encodedSize(v)` | Arithmetic calculation (no writes) | 0 |
+
+The encoder is allocation-minimal: one `.slice()` for safe encode, zero for unsafe/pre-allocated modes. The decoder must allocate objects/arrays/strings but avoids parser overhead. Strings ≤24 ASCII chars skip `TextDecoder` allocation.
+
+---
+
+## Benchmark Methodology Notes
+
+All benchmarks run on Apple M-series, Bun runtime. Measurements:
+- **ops/s** = operations per second (higher is better)
+- **Wire size** = raw byte count of encoded output (lower is better)
+
+vs `@msgpack/msgpack`:
+- Encode: 2.04M ops/s vs 0.77M (2.7x faster) — buffer reuse + inline UTF-8
+- Decode: 0.90M ops/s vs 0.87M (1.04x faster) — ASCII fast path
+- Wire size: identical (same MessagePack spec)
+
+vs JSON:
+- Encode: 4.78M ops/s faster (native, in C)
+- Decode: 1.96M ops/s faster (native, in C)
+- Wire size: msgpack is 35-60% smaller (no field names, compact numerics)
