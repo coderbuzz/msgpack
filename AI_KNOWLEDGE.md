@@ -1,6 +1,6 @@
-<!-- docs: sync from coderbuzz/codex@b1e2bde -->
+<!-- docs: sync from coderbuzz/codex@200be78 -->
 
-# Msgpack — AI Agent Knowledge File
+# Msgpack: AI Agent Knowledge File
 
 **Package:** `@coderbuzz/msgpack`
 **Purpose:** High-performance MessagePack serialization for TypeScript.\
@@ -16,8 +16,8 @@ functions. It maintains a single reusable internal encoder buffer to minimize
 allocations across encode calls.
 
 ```
-encode(value)      → Uint8Array   (copy of internal buffer — safe to hold)
-encodeUnsafe(value) → Uint8Array  (view into internal buffer — zero-copy, volatile)
+encode(value)      → Uint8Array   (copy of internal buffer, safe to hold)
+encodeUnsafe(value) → Uint8Array  (view into internal buffer, zero-copy, volatile)
 encodeInto(v, t, o) → number      (write into pre-allocated buffer)
 decode(data)       → unknown      (deserialize MessagePack bytes)
 encodedSize(value) → number       (pre-calculate byte count without allocating)
@@ -41,7 +41,7 @@ import { decode, encode, encodedSize, encodeInto, encodeUnsafe } from "@coderbuz
 
 ### `encode(value: unknown): Uint8Array`
 
-Encodes any supported value to MessagePack binary. Returns a **copy** — safe
+Encodes any supported value to MessagePack binary. Returns a **copy**: safe
 to store or pass to async consumers.
 
 ```ts
@@ -53,12 +53,12 @@ const data = encode({ user: { name: "Alice", scores: [1, 2, 3] } });
 
 **Rules:**
 - `null` and `undefined` both encode as nil (`0xc0`).
-- `Date` values encode as ISO strings via `.toISOString()` — NOT as MessagePack
+- `Date` values encode as ISO strings via `.toISOString()`, not as MessagePack
   timestamp extension.
 - `number` values > `Number.MAX_SAFE_INTEGER` lose precision. Use `bigint` for
   64-bit integers.
 - `-0` is encoded as float64 to preserve sign.
-- Objects with circular references will **stack overflow** — no detection.
+- Objects with circular references will **stack overflow**, with no detection.
 
 ---
 
@@ -67,10 +67,10 @@ const data = encode({ user: { name: "Alice", scores: [1, 2, 3] } });
 Zero-copy encode. Returns a **view** (`subarray`) into the internal buffer.
 
 ```ts
-// Safe usage — immediate synchronous consumption
+// Safe usage: immediate synchronous consumption
 socket.write(encodeUnsafe(packet));
 
-// UNSAFE — data will be corrupted on next encode
+// UNSAFE: data will be corrupted on next encode
 const unsafe = encodeUnsafe(data);
 await sendLater(unsafe); // bug!
 ```
@@ -95,7 +95,7 @@ send(pool.subarray(0, offset));
 
 **Rules:**
 - `offset` defaults to `0`.
-- No bounds checking on `target` — caller is responsible for buffer size.
+- No bounds checking on `target`: caller is responsible for buffer size.
 - Returns the number of bytes written.
 
 ---
@@ -119,7 +119,7 @@ const restored = decode(bytes); // => { hello: "world" }
 
 ### `encodedSize(value: unknown): number`
 
-Pre-calculates encoded size without allocating. Exact — `encodedSize(val) === encode(val).length`.
+Pre-calculates encoded size without allocating. Exact: `encodedSize(val) === encode(val).length`.
 
 ```ts
 const size = encodedSize({ name: "Ken", age: 30 }); // pre-calc
@@ -232,7 +232,7 @@ new Response(encode(data), {
 import { encodeUnsafe } from "@coderbuzz/msgpack";
 
 function send(socket: WebSocket, msg: unknown) {
-  socket.send(encodeUnsafe(msg)); // safe — send is synchronous
+  socket.send(encodeUnsafe(msg)); // safe: send is synchronous
 }
 ```
 
@@ -276,7 +276,7 @@ const jsonBytes = new TextEncoder().encode(JSON.stringify(data)); // ~18-20 byte
 | Truncated/malformed input | Out-of-bounds read (no bounds check) |
 | Very large array (> 2^32) | Not supported (JS limit) |
 | `Date` object | Encoded as ISO string, NOT timestamp ext |
-| `Symbol`, `Map`, `Set` | Not supported — will fail type check |
+| `Symbol`, `Map`, `Set` | Not supported: will fail type check |
 
 ---
 
@@ -297,7 +297,7 @@ try {
 ```
 
 For decoding untrusted data, wrap in try-catch. The decoder has no bounds
-checking — malformed data may produce `RangeError` from `DataView` methods.
+checking: malformed data may produce `RangeError` from `DataView` methods.
 
 ---
 
@@ -305,7 +305,7 @@ checking — malformed data may produce `RangeError` from `DataView` methods.
 
 ### Growth Algorithm
 
-The encoder uses a single module-level reusable buffer (`buf: Uint8Array`, `dv: DataView`, `pos: number`). All encode functions share these globals — thread-safe because JS is single-threaded.
+The encoder uses a single module-level reusable buffer (`buf: Uint8Array`, `dv: DataView`, `pos: number`). All encode functions share these globals: thread-safe because JS is single-threaded.
 
 ```
 Initial: buf = new Uint8Array(65536)  // 64 KB
@@ -317,8 +317,8 @@ The buffer never shrinks. It grows geometrically (doubles) when `pos + needed > 
 **Lifecycle:**
 1. `encode()` call → `pos = 0`
 2. Write header + value(s) → `pos` advances
-3. Return `buf.slice(0, pos)` — copy for safety
-4. `encodeUnsafe()` returns `buf.subarray(0, pos)` — view, zero-copy
+3. Return `buf.slice(0, pos)`: copy for safety
+4. `encodeUnsafe()` returns `buf.subarray(0, pos)`: view, zero-copy
 
 ### Encoding Decision Tree
 
@@ -363,7 +363,7 @@ decode byte at position
   └─ default → throw "MessagePack: unknown format byte 0xNN at offset N"
 ```
 
-**ASCII fast path (decode):** Strings ≤24 bytes where all bytes are ≤ 0x7F use `String.fromCharCode()` directly — avoids `TextDecoder`.
+**ASCII fast path (decode):** Strings ≤24 bytes where all bytes are ≤ 0x7F use `String.fromCharCode()` directly, avoiding `TextDecoder`.
 
 ### Performance Characteristics
 
@@ -386,8 +386,8 @@ All benchmarks run on Apple M-series, Bun runtime. Measurements:
 - **Wire size** = raw byte count of encoded output (lower is better)
 
 vs `@msgpack/msgpack`:
-- Encode: 2.04M ops/s vs 0.77M (2.7x faster) — buffer reuse + inline UTF-8
-- Decode: 0.90M ops/s vs 0.87M (1.04x faster) — ASCII fast path
+- Encode: 2.04M ops/s vs 0.77M (2.7x faster) via buffer reuse + inline UTF-8
+- Decode: 0.90M ops/s vs 0.87M (1.04x faster) via ASCII fast path
 - Wire size: identical (same MessagePack spec)
 
 vs JSON:

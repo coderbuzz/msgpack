@@ -1,6 +1,6 @@
-<!-- docs: sync from coderbuzz/codex@b1e2bde -->
+<!-- docs: sync from coderbuzz/codex@200be78 -->
 
-# Msgpack &mdash; `@coderbuzz/msgpack`
+# Msgpack: `@coderbuzz/msgpack`
 
 > **High-performance MessagePack for TypeScript.** Smaller than JSON. 2x faster than `@msgpack/msgpack`. Zero unnecessary allocations.
 > AI agents: see [AI_KNOWLEDGE.md](https://github.com/coderbuzz/msgpack/blob/main/AI_KNOWLEDGE.md) for expert context.
@@ -21,13 +21,13 @@
 
 | Pain Point | @msgpack/msgpack | notepack | **@coderbuzz/msgpack** |
 |---|---|---|---|
-| Buffer reuse | Allocates new buffer per encode | Partial | **Full** — internal buffer recycles across encode calls |
-| Zero-copy encode | No | No | **`encodeUnsafe()`** — returns view of internal buffer, zero allocation |
-| Pre-allocation | No | No | **`encodeInto()`** — writes to caller-owned buffer |
-| Size pre-calculation | Manual estimate | Manual estimate | **`encodedSize()`** — exact byte count without allocating |
-| Integer encoding | Standard | Standard | **Smallest possible** — auto-selects fixint/uint8/16/32/int8/16/32/float64 |
-| Short ASCII strings | TextEncoder always | TextEncoder always | **Inline encoder** — avoids TextEncoder for strings <32 chars |
-| Decode fast path | None | None | **ASCII scan** — `String.fromCharCode()` for strings ≤24 bytes |
+| Buffer reuse | Allocates new buffer per encode | Partial | **Full**: internal buffer recycles across encode calls |
+| Zero-copy encode | No | No | **`encodeUnsafe()`**: returns view of internal buffer, zero allocation |
+| Pre-allocation | No | No | **`encodeInto()`**: writes to caller-owned buffer |
+| Size pre-calculation | Manual estimate | Manual estimate | **`encodedSize()`**: exact byte count without allocating |
+| Integer encoding | Standard | Standard | **Smallest possible**: auto-selects fixint/uint8/16/32/int8/16/32/float64 |
+| Short ASCII strings | TextEncoder always | TextEncoder always | **Inline encoder**: avoids TextEncoder for strings <32 chars |
+| Decode fast path | None | None | **ASCII scan**: `String.fromCharCode()` for strings ≤24 bytes |
 | ESM only | Yes | CJS | Yes |
 | Bundle size | ~10 KB gzip | ~5 KB | **<3 KB gzip** |
 
@@ -35,12 +35,12 @@
 
 ## Key Design Goals
 
-- **Reusable internal buffer** — minimize GC pressure across encode calls
-- **Smallest possible integer encoding** — auto-selects optimal MessagePack format
-- **Zero-copy encode option** — `encodeUnsafe` for immediate consumption
-- **Pre-allocation support** — `encodeInto` writes to a caller-owned buffer
-- **Size pre-calculation** — `encodedSize` without allocating
-- **Fast paths** — inline UTF-8 encoder for short strings, ASCII decoder for small strings
+- **Reusable internal buffer**: minimize GC pressure across encode calls
+- **Smallest possible integer encoding**: auto-selects optimal MessagePack format
+- **Zero-copy encode option**: `encodeUnsafe` for immediate consumption
+- **Pre-allocation support**: `encodeInto` writes to a caller-owned buffer
+- **Size pre-calculation**: `encodedSize` without allocating
+- **Fast paths**: inline UTF-8 encoder for short strings, ASCII decoder for small strings
 
 ---
 
@@ -92,7 +92,7 @@ const bytes = encode({ name: "Alice", age: 30, active: true });
 const value = decode(bytes);
 // => { name: "Alice", age: 30, active: true }
 
-// Zero-copy (returns view — consume immediately)
+// Zero-copy (returns view, consume immediately)
 socket.send(encodeUnsafe({ event: "click", x: 10, y: 20 }));
 
 // Pre-allocation (caller-owned buffer)
@@ -129,7 +129,7 @@ const bytes = encode({ hello: "world" });
 
 ### `encodeUnsafe(value: unknown): Uint8Array`
 
-Zero-copy encode — returns a **view** (`subarray`) of the internal buffer. No allocation for the output.
+Zero-copy encode: returns a **view** (`subarray`) of the internal buffer. No allocation for the output.
 
 **WARNING:** Invalidated on the next `encode*` call. Only for immediate consumption.
 
@@ -137,7 +137,7 @@ Zero-copy encode — returns a **view** (`subarray`) of the internal buffer. No 
 // Good
 socket.write(encodeUnsafe(data));
 
-// Bad — will be corrupted
+// Bad: will be corrupted
 const unsafe = encodeUnsafe(data);
 doSomethingLater(unsafe);
 ```
@@ -250,10 +250,10 @@ function batchEncode(items: unknown[]): Uint8Array {
 
 ## Limitations
 
-- **No MessagePack extension types** — Timestamp, custom extensions not supported. `Date` objects are ISO strings.
-- **No streaming/SAX decoder** — Entire message in memory.
-- **No bounds checking on decode** — Only decode trusted data.
-- **No CJS build** — ESM only. Node.js 18+ with `"type": "module"`.
+- **No MessagePack extension types**: Timestamp, custom extensions not supported. `Date` objects are ISO strings.
+- **No streaming/SAX decoder**: Entire message in memory.
+- **No bounds checking on decode**: Only decode trusted data.
+- **No CJS build**: ESM only. Node.js 18+ with `"type": "module"`.
 
 ---
 
