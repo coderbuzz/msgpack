@@ -1,4 +1,4 @@
-<!-- docs: sync from coderbuzz/codex@200be78 -->
+<!-- docs: sync from coderbuzz/codex@b37bd48 -->
 
 # Msgpack: AI Agent Knowledge File
 
@@ -11,7 +11,7 @@
 
 ## Mental Model
 
-`@coderbuzz/msgpack` is a **single-function library** with five exported
+`@coderbuzz/msgpack` is a **small library** with five exported
 functions. It maintains a single reusable internal encoder buffer to minimize
 allocations across encode calls.
 
@@ -95,7 +95,10 @@ send(pool.subarray(0, offset));
 
 **Rules:**
 - `offset` defaults to `0`.
-- No bounds checking on `target`: caller is responsible for buffer size.
+- No bounds checking on `target`: caller is responsible for buffer size. If the
+  encoded bytes do not fit, `target.set()` throws `RangeError` and nothing is written.
+- Encodes into the internal buffer first, then copies into `target`. It resets the
+  internal buffer, so it also invalidates any earlier `encodeUnsafe` view.
 - Returns the number of bytes written.
 
 ---
@@ -112,6 +115,9 @@ const restored = decode(bytes); // => { hello: "world" }
 
 **Rules:**
 - `undefined` values round-trip as `null` (MessagePack has no `undefined` type).
+- `uint64` (`0xcf`) and `int64` (`0xd3`) always decode as `bigint`, even for small values.
+- `float32` (`0xca`) and extension formats (`fixext`/`ext`, `0xd4`-`0xd8`, `0xc7`-`0xc9`)
+  are not decoded: they throw "unknown format byte".
 - Throws on unknown format byte: `"MessagePack: unknown format byte 0xNN at offset N"`.
 - No bounds checking on `data`. Malformed input can cause out-of-bounds reads.
 
@@ -119,7 +125,8 @@ const restored = decode(bytes); // => { hello: "world" }
 
 ### `encodedSize(value: unknown): number`
 
-Pre-calculates encoded size without allocating. Exact: `encodedSize(val) === encode(val).length`.
+Pre-calculates encoded size without allocating. Exact for supported types: `encodedSize(val) === encode(val).length`.
+Not exact for functions and symbols: `encodedSize` counts 1 byte, `encode` writes 0 bytes.
 
 ```ts
 const size = encodedSize({ name: "Ken", age: 30 }); // pre-calc
@@ -182,7 +189,7 @@ All non-integer numbers use float64 (`0xcb`, 9 bytes).
 
 | UTF-8 Byte Length | Format | Header Size |
 |-------------------|--------|-------------|
-| 1–31 | fixstr `0xa0\|len` | 1 |
+| 0–31 | fixstr `0xa0\|len` | 1 |
 | 32–255 | str8 `0xd9` | 2 |
 | 256–65535 | str16 `0xda` | 3 |
 | > 65535 | str32 `0xdb` | 5 |
@@ -191,7 +198,7 @@ All non-integer numbers use float64 (`0xcb`, 9 bytes).
 
 | Length | Format | Header Size |
 |--------|--------|-------------|
-| 1–255 | bin8 `0xc4` | 2 |
+| 0–255 | bin8 `0xc4` | 2 |
 | 256–65535 | bin16 `0xc5` | 3 |
 | > 65535 | bin32 `0xc6` | 5 |
 
@@ -259,8 +266,8 @@ function encodeBatch(items: unknown[]): Uint8Array {
 import { encode } from "@coderbuzz/msgpack";
 
 const data = { a: 1, b: 2, c: true };
-const msgpackBytes = encode(data);      // ~10-12 bytes
-const jsonBytes = new TextEncoder().encode(JSON.stringify(data)); // ~18-20 bytes
+const msgpackBytes = encode(data);      // 10 bytes
+const jsonBytes = new TextEncoder().encode(JSON.stringify(data)); // 22 bytes
 ```
 
 ---
@@ -276,7 +283,8 @@ const jsonBytes = new TextEncoder().encode(JSON.stringify(data)); // ~18-20 byte
 | Truncated/malformed input | Out-of-bounds read (no bounds check) |
 | Very large array (> 2^32) | Not supported (JS limit) |
 | `Date` object | Encoded as ISO string, NOT timestamp ext |
-| `Symbol`, `Map`, `Set` | Not supported: will fail type check |
+| `Map`, `Set`, class instances | Encoded as a map of own enumerable string keys (`Map`/`Set` become `{}`) |
+| `Symbol`, function | **Zero bytes written**, no error. Inside an array or object this produces a corrupt stream |
 
 ---
 
@@ -330,29 +338,31 @@ value to encode
   │   ├─ Number.isInteger(v) && in varint range → smallest fixint/uint/int
   │   └─ else                                   → float64 (0xcb)
   ├─ typeof v === "string"
-  │   ├─ len < 32 → inline UTF-8 encoder (no TextEncoder)
-  │   ├─ len < 256 → str8 (0xd9)
-  │   ├─ len < 65536 → str16 (0xda)
-  │   └─ len >= 65536 → str32 (0xdb)
+  │   ├─ len < 32 (UTF-16 units) → inline UTF-8 encoder (no TextEncoder)
+  │   ├─ len >= 32 → TextEncoder
+  │   └─ header by UTF-8 byte length: < 32 fixstr, < 256 str8 (0xd9),
+  │      < 65536 str16 (0xda), else str32 (0xdb)
   ├─ typeof v === "bigint"
   │   ├─ v >= 0n → uint64 (0xcf)
   │   └─ v < 0n  → int64 (0xd3)
   ├─ v instanceof Uint8Array → bin8/16/32 based on length
   ├─ v instanceof Date → ISO string via .toISOString()
   ├─ Array.isArray(v) → fixarray/array16/32 + recursive encode
-  └─ typeof v === "object" → fixmap/map16/32 + recursive encode keys+values
+  ├─ typeof v === "object" → fixmap/map16/32 + recursive encode keys+values
+  └─ symbol / function → nothing written
 ```
 
 ### Decode Decision Tree
 
 ```
 decode byte at position
+  ├─ 0x00..0x7f (positive fixint) → return byte
+  ├─ 0xe0..0xff (negative fixint) → return byte - 256
   ├─ 0xc0 → return null (nil)
   ├─ 0xc2/0xc3 → return false/true
-  ├─ 0xca → read float32 (4 bytes)
   ├─ 0xcb → read float64 (8 bytes)
-  ├─ 0xcc..0xcf → read uint8/16/32/64
-  ├─ 0xd0..0xd3 → read int8/16/32/64
+  ├─ 0xcc..0xcf → read uint8/16/32/64 (uint64 returns bigint)
+  ├─ 0xd0..0xd3 → read int8/16/32/64 (int64 returns bigint)
   ├─ 0xa0..0xbf (fixstr) → read string of length (byte & 0x1f)
   ├─ 0xd9..0xdb (str8/16/32) → read string with header length
   ├─ 0xc4..0xc6 (bin8/16/32) → return Uint8Array
@@ -360,7 +370,7 @@ decode byte at position
   ├─ 0xdc..0xdd (array16/32) → read array with header length, recurse
   ├─ 0x80..0x8f (fixmap) → read map of length (byte & 0x0f), recurse key+value
   ├─ 0xde..0xdf (map16/32) → read map with header length, recurse key+value
-  └─ default → throw "MessagePack: unknown format byte 0xNN at offset N"
+  └─ default (incl. 0xca float32, ext/fixext) → throw "MessagePack: unknown format byte 0xNN at offset N"
 ```
 
 **ASCII fast path (decode):** Strings ≤24 bytes where all bytes are ≤ 0x7F use `String.fromCharCode()` directly, avoiding `TextDecoder`.
@@ -391,6 +401,27 @@ vs `@msgpack/msgpack`:
 - Wire size: identical (same MessagePack spec)
 
 vs JSON:
-- Encode: 4.78M ops/s faster (native, in C)
-- Decode: 1.96M ops/s faster (native, in C)
-- Wire size: msgpack is 35-60% smaller (no field names, compact numerics)
+- Encode: JSON.stringify is faster, 4.78M ops/s vs 2.04M (native)
+- Decode: JSON.parse is faster, 1.96M ops/s vs 0.90M (native)
+- Wire size: 133 bytes vs 178 for the benchmark nested object (~25% smaller).
+  Field names are still written; savings come from compact headers and numerics.
+
+### Size Comparison vs JSON
+
+| Payload type | JSON size | Msgpack size | Savings |
+|---|---|---|---|
+| Compact object `{ name, age, active }` | 39 bytes | 25 bytes | ~36% |
+| Numeric array `[1..1000]` | 3894 bytes | 2621 bytes | ~33% |
+| Nested object (benchmark payload) | 178 bytes | 133 bytes | ~25% |
+
+---
+
+## Limitations
+
+- No MessagePack extension types (Timestamp, custom ext). `Date` encodes as an ISO string.
+- Decoder does not read `float32` (`0xca`) or `ext`/`fixext`; data from other encoders
+  that emit these throws.
+- No streaming decoder: the whole message must be in memory.
+- No bounds checking on decode: only decode trusted data.
+- ESM only, no CJS build (tsup `format: ['esm']`, target `es2022`).
+- Bundle size: under 3 KB gzip.

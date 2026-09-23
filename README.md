@@ -1,8 +1,8 @@
-<!-- docs: sync from coderbuzz/codex@200be78 -->
+<!-- docs: sync from coderbuzz/codex@b37bd48 -->
 
 # Msgpack: `@coderbuzz/msgpack`
 
-> **High-performance MessagePack for TypeScript.** Smaller than JSON. 2x faster than `@msgpack/msgpack`. Zero unnecessary allocations.
+> **High-performance MessagePack for TypeScript.** Smaller than JSON. 2.7x faster encode than `@msgpack/msgpack`. Zero unnecessary allocations.
 > AI agents: see [AI_KNOWLEDGE.md](https://github.com/coderbuzz/msgpack/blob/main/AI_KNOWLEDGE.md) for expert context.
 <p align="center">
   <a href="https://www.npmjs.com/package/@coderbuzz/msgpack"><img src="https://img.shields.io/npm/v/@coderbuzz/msgpack.svg?style=flat-square" alt="npm version" /></a>
@@ -13,7 +13,7 @@
   <a href="https://codecov.io/gh/coderbuzz/msgpack"><img src="https://codecov.io/gh/coderbuzz/msgpack/graph/badge.svg" alt="Codecov" /></a>
 </p>
 
-`@coderbuzz/msgpack` is a purpose-built MessagePack encoder/decoder optimized for minimal GC pressure and maximum throughput. For structured API responses, compact objects are **~55% smaller** than JSON, and numeric arrays are **~60% smaller**.
+`@coderbuzz/msgpack` is a purpose-built MessagePack encoder/decoder optimized for minimal GC pressure and maximum throughput. Compact objects are **~35% smaller** than JSON, and small-integer arrays are **~33% smaller**.
 
 ---
 
@@ -48,16 +48,16 @@
 
 | Payload type | JSON size | Msgpack size | Savings |
 |---|---|---|---|
-| Compact object `{ name, age, active }` | ~45 bytes | ~20 bytes | **~55%** |
-| Numeric array `[1..1000]` | ~3.9 KB | ~1.5 KB | **~60%** |
-| Structured API response (nested) | ~2 KB | ~1.3 KB | **~35%** |
+| Compact object `{ name, age, active }` | 39 bytes | 25 bytes | **~36%** |
+| Numeric array `[1..1000]` | 3894 bytes | 2621 bytes | **~33%** |
+| Nested object (benchmark payload) | 178 bytes | 133 bytes | **~25%** |
 
 ### Throughput & Wire Size (Apple M-series, Bun)
 
 Full results at **[github.com/coderbuzz/benchmarks](https://github.com/coderbuzz/benchmarks)**.
 
 | Scenario | @coderbuzz/msgpack | @msgpack/msgpack | Factor |
-|---|---|---|---|---|
+|---|---|---|---|
 | Nested object encode | **2.04M ops/s** | 0.77M | **2.7x** |
 | Nested object decode | **0.90M ops/s** | 0.87M | **1.04x** |
 | Wire size (nested object) | **133 bytes** | 133 bytes | Same |
@@ -84,10 +84,10 @@ import { encode, decode } from "npm:@coderbuzz/msgpack";
 ## Quick Start
 
 ```ts
-import { decode, encode } from "@coderbuzz/msgpack";
+import { decode, encode, encodedSize, encodeInto, encodeUnsafe } from "@coderbuzz/msgpack";
 
 const bytes = encode({ name: "Alice", age: 30, active: true });
-// => Uint8Array (compact binary, ~20 bytes vs ~45 bytes JSON)
+// => Uint8Array (compact binary, 25 bytes vs 39 bytes JSON)
 
 const value = decode(bytes);
 // => { name: "Alice", age: 30, active: true }
@@ -171,7 +171,7 @@ const buffer = new Uint8Array(size);
 encodeInto({ name: "Alice", age: 30, scores: [1, 2, 3] }, buffer);
 ```
 
-`encodedSize(val) === encode(val).length` always holds.
+`encodedSize(val) === encode(val).length` holds for the supported types above. It does not hold for functions and symbols, which `encode` writes as zero bytes.
 
 ---
 
@@ -196,7 +196,7 @@ encodeInto({ name: "Alice", age: 30, scores: [1, 2, 3] }, buffer);
 
 | Byte Length | Format | Header Size |
 |---|---|---|
-| 1–31 | fixstr | 1 byte |
+| 0–31 | fixstr | 1 byte |
 | 32–255 | str8 | 2 bytes |
 | 256–65535 | str16 | 3 bytes |
 | > 65535 | str32 | 5 bytes |
@@ -251,6 +251,7 @@ function batchEncode(items: unknown[]): Uint8Array {
 ## Limitations
 
 - **No MessagePack extension types**: Timestamp, custom extensions not supported. `Date` objects are ISO strings.
+- **Decoder reads only what the encoder writes**: `float32` (`0xca`), `fixext`/`ext` (`0xd4`-`0xd8`, `0xc7`-`0xc9`) throw "unknown format byte". Data from encoders that emit float32 will not decode.
 - **No streaming/SAX decoder**: Entire message in memory.
 - **No bounds checking on decode**: Only decode trusted data.
 - **No CJS build**: ESM only. Node.js 18+ with `"type": "module"`.
