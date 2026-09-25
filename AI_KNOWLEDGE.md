@@ -1,4 +1,4 @@
-<!-- docs: sync from coderbuzz/codex@b37bd48 -->
+<!-- docs: sync from coderbuzz/codex@a1ca665 -->
 
 # Msgpack: AI Agent Knowledge File
 
@@ -423,5 +423,5 @@ vs JSON:
   that emit these throws.
 - No streaming decoder: the whole message must be in memory.
 - No bounds checking on decode: only decode trusted data.
-- ESM only, no CJS build (tsup `format: ['esm']`, target `es2022`).
+- ESM only, no CJS build (built with `Bun.build`, `format: 'esm'`; `validate-publish` enforces ES2022 syntax).
 - Bundle size: under 3 KB gzip.
