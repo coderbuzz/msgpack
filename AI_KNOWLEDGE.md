@@ -1,4 +1,4 @@
-<!-- docs: sync from coderbuzz/codex@a2d275a -->
+<!-- docs: sync from coderbuzz/codex@8854676 -->
 
 # Msgpack: AI Agent Knowledge File
 
@@ -312,7 +312,7 @@ For request bodies also set explicit limits, for example `new Decoder({ maxStrLe
 ### Decoder
 
 - Each call sets `data`, a `DataView`, `pos`, `end`; `finally` clears them.
-- **Key cache**: object keys that are fixstr of 1–16 bytes are hashed (`h = h·31 + byte`, 4096 slots) and compared byte for byte with the cached copy; a hit returns the same string, so V8/JSC do not re-intern it. A miss decodes and replaces the slot. Collisions only cost a miss. This is the main reason object decoding got 2.2–2.5x faster in 0.2.
+- **Key cache**: object keys that are fixstr of 1–16 bytes are hashed (`h = h·31 + byte`, 4096 slots) and compared byte for byte with the cached copy; a hit returns the same string, so V8/JSC do not re-intern it. A miss decodes and replaces the slot. Collisions only cost a miss. This is the main reason object decoding got faster in 0.2 (measured locally against 0.1.21: 2.2–2.5x).
 - ASCII strings ≤ 24 bytes are built with `String.fromCharCode`; others go through `TextDecoder` (`ignoreBOM: true`, so a leading U+FEFF is kept; before 0.2 it was stripped).
 - Nested decoding from an extension `decode()` runs on a fresh decoder.
 
@@ -390,36 +390,19 @@ function encodeBatch(items: unknown[]): Uint8Array {
 
 ## Benchmarks
 
-### Official (`github.com/coderbuzz/benchmarks`, `results/latest.json`)
+Source of truth: `https://raw.githubusercontent.com/coderbuzz/benchmarks/main/results/latest.json` (suite ids `msgpack-encode`, `msgpack-decode`, `msgpack-wire`; each entry has `winner`, `factorVsNext`, `factorVsBest`). Quote numbers from there only. The in-repo suites and earlier local tables (mitata runs against msgpackr and notepack.io, the 0.1.7 run on Apple Silicon, the 0.1.21 → 0.2 comparison) are A/B measurements and are not published claims.
 
-2026-06-21, Apple Silicon, Bun 1.3.14, **@coderbuzz/msgpack 0.1.7** (before the 0.2 rewrite):
+Numbers from [github.com/coderbuzz/benchmarks](https://github.com/coderbuzz/benchmarks) (`results/latest.json`): cloud reference machine (Intel Xeon @ 2.10GHz, CPU model 207, 4 cores, Linux x64), Bun 1.4.2, run of 2026-10-10 (benchmarks `131fcc5`). @coderbuzz/msgpack 0.2.0 against @msgpack/msgpack 3.1.3 (its top-level `encode()`/`decode()`), a nested object; ops/s, best of 3 processes, higher is better.
 
-| Scenario | @coderbuzz/msgpack | @msgpack/msgpack | JSON |
+| Scenario | @coderbuzz/msgpack | @msgpack/msgpack | Result |
 |---|---|---|---|
-| Nested object encode | 2.04M ops/s | 0.77M | 4.78M |
-| Nested object decode | 0.90M ops/s | 0.87M | 1.96M |
-| Wire size | 133 B | 133 B | 178 B |
+| Nested object encode | **1.60M ops/s** | 0.38M | **4.2x** |
+| Nested object decode | **0.90M ops/s** | 0.48M | **1.9x** |
+| Wire size (nested object) | 133 bytes | 133 bytes | same bytes |
 
-The suite compares only with `@msgpack/msgpack`'s top-level `encode()`/`decode()`, not with a reused `Encoder` or with msgpackr. On Bun 1.4.2 the "2.7x faster encode" of 0.1.7 no longer reproduces (1.09x against a reused `@msgpack/msgpack` `Encoder`), which is why DOCS no longer claims it.
+The suite compares MessagePack libraries only: `JSON.stringify` returns an engine-native string rather than bytes encoded in JavaScript, so it is not a like-for-like contender. msgpackr, notepack.io and a reused `@msgpack/msgpack` `Encoder` are not in the public suite, so these docs make no speed claim against them. Figures elsewhere in this file that say "measured" are local A/B measurements behind a design decision, taken on a developer machine; they explain a trade-off and are not benchmark claims. Quote speed only from the public results.
 
-### Local, this release (not the official source)
-
-Bun 1.4.2, Linux x64 container, mitata, average per operation. msgpackr 2.1.0 (`useRecords: false`), @msgpack/msgpack 3.1.3, notepack.io 3.0.1. Container noise is about ±25%.
-
-| Payload | encode | msgpackr | @msgpack `Encoder` | decode | msgpackr | @msgpack `decode()` | notepack |
-|---|---|---|---|---|---|---|---|
-| nested (133 B) | 0.97 µs | 1.07 µs | 1.18 µs | 1.39 µs | 1.83 µs | 1.70 µs | 1.57 µs |
-| small `{ok, id}` | 140 ns | 155 ns | 161 ns | 118 ns | 88 ns | 208 ns | 145 ns |
-| rows (100 invoices, 15.8 KB) | 74.9 µs | 77.5 µs | 84.1 µs | 98.4 µs | 109.4 µs | 155.2 µs | 83.6 µs |
-| long string 2.3 KB | 0.87 µs | 0.66 µs | 4.36 µs | 0.86 µs | 1.01 µs | 0.87 µs | 0.79 µs |
-| unicode | 700 ns | 619 ns | 938 ns | 718 ns | 1.32 µs | 2.01 µs | 715 ns |
-| 1000 integers | 11.2 µs | 18.0 µs | 17.1 µs | 9.75 µs | 8.74 µs | 10.6 µs | 8.37 µs |
-| 1000 floats | 14.9 µs | 31.4 µs | 29.1 µs | 10.9 µs | 9.73 µs | 10.9 µs | 8.35 µs |
-| 64 KB bin | 7.48 µs | 9.25 µs | 7.91 µs | 5.39 µs² | 0.42 µs | 0.29 µs | 0.17 µs |
-
-² bin is copied by default; `copyBinary: false` decodes it in 0.17 µs. `encodeUnsafe` skips the result copy (2.03 µs for 64 KB bin, 0.22 µs for the long string).
-
-Change from 0.1.21 on the same machine (old / new): decode nested 2.21x, small 2.47x, rows 2.48x faster (key cache); encode long strings 1.5–3.2x (in-place UTF-8), rows 1.92x, integers 1.71x, floats 1.68x faster. Decoding long strings is 0.83–1.10x (within noise; the bounds checks cost a few percent).
+Size against JSON is exact, not a benchmark: `{ name, age, active }` is 39 bytes as JSON and 25 as MessagePack (~36% smaller), `[1..1000]` 3894 vs 2621 bytes (~33%), the benchmark's nested object 178 vs 133 bytes (~25%).
 
 Bundle: 7.9 KB gzip unminified, 5.9 KB gzip minified (0.1.21: 2.8 / 1.9 KB). For comparison, minified: @msgpack/msgpack 6.3 KB, msgpackr 11.0 KB.
 

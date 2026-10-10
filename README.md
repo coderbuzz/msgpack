@@ -1,4 +1,4 @@
-<!-- docs: sync from coderbuzz/codex@a2d275a -->
+<!-- docs: sync from coderbuzz/codex@8854676 -->
 
 # Msgpack: `@coderbuzz/msgpack`
 
@@ -30,15 +30,17 @@
 
 ## Benchmarks
 
-Numbers from **[github.com/coderbuzz/benchmarks](https://github.com/coderbuzz/benchmarks)** (`results/latest.json`, 2026-06-21, Apple Silicon, Bun 1.3.14). They were measured on **0.1.7**, before this release's decoder rewrite, so they are not current.
+Numbers from [github.com/coderbuzz/benchmarks](https://github.com/coderbuzz/benchmarks) (`results/latest.json`): cloud reference machine (Intel Xeon @ 2.10GHz, CPU model 207, 4 cores, Linux x64), Bun 1.4.2, run of 2026-10-10 (benchmarks `131fcc5`). @coderbuzz/msgpack 0.2.0 against @msgpack/msgpack 3.1.3 (its top-level `encode()`/`decode()`), a nested object; ops/s, best of 3 processes, higher is better.
 
-| Scenario | @coderbuzz/msgpack | @msgpack/msgpack | JSON |
+| Scenario | @coderbuzz/msgpack | @msgpack/msgpack | Result |
 |---|---|---|---|
-| Nested object encode | **2.04M ops/s** | 0.77M | 4.78M |
-| Nested object decode | **0.90M ops/s** | 0.87M | 1.96M |
-| Wire size (nested object) | **133 bytes** | 133 bytes | 178 bytes |
+| Nested object encode | **1.60M ops/s** | 0.38M | **4.2x** |
+| Nested object decode | **0.90M ops/s** | 0.48M | **1.9x** |
+| Wire size (nested object) | 133 bytes | 133 bytes | same bytes |
 
-JSON.stringify/parse are native and faster on this payload, but produce larger output and have no binary type. See [AI_KNOWLEDGE.md](https://github.com/coderbuzz/msgpack/blob/main/AI_KNOWLEDGE.md) for local measurements of this release against msgpackr, `@msgpack/msgpack` and notepack.io.
+The suite compares MessagePack libraries only: `JSON.stringify` returns an engine-native string rather than bytes encoded in JavaScript, so it is not a like-for-like contender. msgpackr, notepack.io and a reused `@msgpack/msgpack` `Encoder` are not in the public suite, so these docs make no speed claim against them.
+
+> Numbers move with the machine; compare them only within one run. The source of truth is `https://raw.githubusercontent.com/coderbuzz/benchmarks/main/results/latest.json`.
 
 ### Size compared to JSON
 
