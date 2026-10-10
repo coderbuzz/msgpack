@@ -1,4 +1,4 @@
-<!-- docs: sync from coderbuzz/codex@8854676 -->
+<!-- docs: sync from coderbuzz/codex@5aee801 -->
 
 # Msgpack: AI Agent Knowledge File
 
@@ -392,12 +392,12 @@ function encodeBatch(items: unknown[]): Uint8Array {
 
 Source of truth: `https://raw.githubusercontent.com/coderbuzz/benchmarks/main/results/latest.json` (suite ids `msgpack-encode`, `msgpack-decode`, `msgpack-wire`; each entry has `winner`, `factorVsNext`, `factorVsBest`). Quote numbers from there only. The in-repo suites and earlier local tables (mitata runs against msgpackr and notepack.io, the 0.1.7 run on Apple Silicon, the 0.1.21 → 0.2 comparison) are A/B measurements and are not published claims.
 
-Numbers from [github.com/coderbuzz/benchmarks](https://github.com/coderbuzz/benchmarks) (`results/latest.json`): cloud reference machine (Intel Xeon @ 2.10GHz, CPU model 207, 4 cores, Linux x64), Bun 1.4.2, run of 2026-10-10 (benchmarks `131fcc5`). @coderbuzz/msgpack 0.2.0 against @msgpack/msgpack 3.1.3 (its top-level `encode()`/`decode()`), a nested object; ops/s, best of 3 processes, higher is better.
+Numbers from [github.com/coderbuzz/benchmarks](https://github.com/coderbuzz/benchmarks) (`results/latest.json`): reference VM (Intel Xeon Platinum 8255C @ 2.50GHz, 4 cores, Linux x64), Bun 1.4.3, run of 2026-10-10 (benchmarks `6ed4ccf`). @coderbuzz/msgpack 0.2.0 against @msgpack/msgpack 3.1.3 (its top-level `encode()`/`decode()`), a nested object; ops/s, best of 3 processes, higher is better.
 
 | Scenario | @coderbuzz/msgpack | @msgpack/msgpack | Result |
 |---|---|---|---|
-| Nested object encode | **1.60M ops/s** | 0.38M | **4.2x** |
-| Nested object decode | **0.90M ops/s** | 0.48M | **1.9x** |
+| Nested object encode | **1.25M ops/s** | 0.48M | **2.6x** |
+| Nested object decode | **0.86M ops/s** | 0.42M | **2.0x** |
 | Wire size (nested object) | 133 bytes | 133 bytes | same bytes |
 
 The suite compares MessagePack libraries only: `JSON.stringify` returns an engine-native string rather than bytes encoded in JavaScript, so it is not a like-for-like contender. msgpackr, notepack.io and a reused `@msgpack/msgpack` `Encoder` are not in the public suite, so these docs make no speed claim against them. Figures elsewhere in this file that say "measured" are local A/B measurements behind a design decision, taken on a developer machine; they explain a trade-off and are not benchmark claims. Quote speed only from the public results.
