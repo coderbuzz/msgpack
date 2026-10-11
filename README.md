@@ -1,4 +1,4 @@
-<!-- docs: sync from coderbuzz/codex@aa9c4da -->
+<!-- docs: sync from coderbuzz/codex@956f0b5 -->
 
 # Msgpack: `@coderbuzz/msgpack`
 
@@ -30,12 +30,12 @@
 
 ## Benchmarks
 
-Numbers from [github.com/coderbuzz/benchmarks](https://github.com/coderbuzz/benchmarks) (`results/latest.json`): cloud machine (Intel Xeon @ 2.80GHz, family 6 model 85 stepping 7, 4 cores, Linux x64), Bun 1.4.3, run of 2026-10-10 (benchmarks `f9601b4`). @coderbuzz/msgpack 0.2.0 against @msgpack/msgpack 3.1.3 (its top-level `encode()`/`decode()`), a nested object; ops/s, best of 3 processes, higher is better.
+Numbers from [github.com/coderbuzz/benchmarks](https://github.com/coderbuzz/benchmarks) (`results/latest.json`): cloud machine (Intel Xeon @ 2.10GHz, family 6 model 207 stepping 2, 4 cores, Linux x64), Bun 1.4.3, run of 2026-10-10 (benchmarks `31fbcee`). @coderbuzz/msgpack 0.2.0 against @msgpack/msgpack 3.1.3 (its top-level `encode()`/`decode()`), a nested object; ops/s, best of 3 processes, higher is better.
 
 | Scenario | @coderbuzz/msgpack | @msgpack/msgpack | Result |
 |---|---|---|---|
-| Nested object encode | **1.23M ops/s** | 0.33M | **3.7x** |
-| Nested object decode | **0.59M ops/s** | 0.32M | **1.8x** |
+| Nested object encode | **1.57M ops/s** | 0.39M | **4.0x** |
+| Nested object decode | **0.71M ops/s** | 0.39M | **1.8x** |
 | Wire size (nested object) | 133 bytes | 133 bytes | same bytes |
 
 The suite compares MessagePack libraries only: `JSON.stringify` returns an engine-native string rather than bytes encoded in JavaScript, so it is not a like-for-like contender. msgpackr, notepack.io and a reused `@msgpack/msgpack` `Encoder` are not in the public suite, so these docs make no speed claim against them.
